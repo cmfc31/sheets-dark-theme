@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Google Sheets True Dark
 // @namespace    sheets-dark-theme
-// @version      1.6.6
+// @version      1.6.7
 // @description  Dark theme for Google Sheets that keeps photos from turning into negatives.
 // @author       cmfc31
 // @license      MIT
 // @match        https://docs.google.com/spreadsheets/*
 // @match        https://docs.google.com/drivesharing/*
 // @match        https://ogs.google.com/*
+// @match        https://contacts.google.com/*
+// @match        https://people.google.com/*
 // @run-at       document-start
 // @inject-into  content
 // @grant        GM_addStyle
@@ -15,7 +17,7 @@
 
 /*
   Violentmonkey: replace the old script with this whole file, Save, then hard-refresh the sheet (Ctrl+Shift+R).
-  Allow access to ogs.google.com and docs.google.com/drivesharing if Violentmonkey asks.
+  Allow access to ogs.google.com, contacts.google.com, and docs.google.com/drivesharing if Violentmonkey asks.
 */
 
 (() => {
@@ -27,8 +29,11 @@
   const STYLE_ID = "gs-true-dark-style";
   const LOG = "[Sheets True Dark]"; 
   const isAccountWidget = location.hostname === "ogs.google.com";
+  const isPeopleWidget =
+    /^(contacts|people)\.google\.com$/.test(location.hostname) && window.top !== window;
   const isShareFrame = location.pathname.startsWith("/drivesharing/");
   const SHARE_CLASS = "gs-true-dark-share";
+  const AVATAR_BG = /googleusercontent|ggpht|lh[3-6]\.google/i;
 
   const sheetsCss = `
     html.${ROOT_CLASS} {
@@ -54,7 +59,13 @@
     html.${ROOT_CLASS} image,
     html.${ROOT_CLASS} .waffle-borderless-embedded-object-container > [style*="background-image"],
     html.${ROOT_CLASS} .waffle-embedded-object-container img,
-    html.${ROOT_CLASS} .waffle-embedded-object-overlay img {
+    html.${ROOT_CLASS} .waffle-embedded-object-overlay img,
+    html.${ROOT_CLASS} [style*="googleusercontent"],
+    html.${ROOT_CLASS} [style*="ggpht"],
+    html.${ROOT_CLASS} [style*="lh3.google"],
+    html.${ROOT_CLASS} [style*="lh4.google"],
+    html.${ROOT_CLASS} [style*="lh5.google"],
+    html.${ROOT_CLASS} [style*="lh6.google"] {
       filter: ${FILTER} !important;
     }
 
@@ -316,7 +327,13 @@
     html.${ACCOUNT_CLASS} img,
     html.${ACCOUNT_CLASS} picture,
     html.${ACCOUNT_CLASS} video,
-    html.${ACCOUNT_CLASS} image {
+    html.${ACCOUNT_CLASS} image,
+    html.${ACCOUNT_CLASS} [style*="googleusercontent"],
+    html.${ACCOUNT_CLASS} [style*="ggpht"],
+    html.${ACCOUNT_CLASS} [style*="lh3.google"],
+    html.${ACCOUNT_CLASS} [style*="lh4.google"],
+    html.${ACCOUNT_CLASS} [style*="lh5.google"],
+    html.${ACCOUNT_CLASS} [style*="lh6.google"] {
       filter: ${FILTER} !important;
     }
   `;
@@ -349,7 +366,7 @@
     }
   `;
 
-  const css = isAccountWidget ? accountCss : isShareFrame ? shareCss : sheetsCss;
+  const css = isAccountWidget || isPeopleWidget ? accountCss : isShareFrame ? shareCss : sheetsCss;
 
   try {
     GM_addStyle(css);
@@ -407,6 +424,32 @@
     el.style.setProperty("box-shadow", "none", "important");
     const filter = getComputedStyle(el).filter || "";
     if (/drop-shadow/i.test(filter)) el.style.setProperty("filter", "none", "important");
+  }
+
+  function isAvatarPhoto(el) {
+    if (!(el instanceof HTMLElement) && !(el instanceof SVGElement)) return false;
+    const tag = el.tagName;
+    if (tag === "IMG" || tag === "PICTURE" || tag === "VIDEO" || tag === "IMAGE") return true;
+    const style = el.getAttribute("style") || "";
+    if (AVATAR_BG.test(style)) return true;
+    try {
+      return AVATAR_BG.test(getComputedStyle(el).backgroundImage || "");
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function restoreAvatarImages(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll("img, picture, video, image, [style*='background']").forEach((el) => {
+      if (!isAvatarPhoto(el)) return;
+      el.style.setProperty("filter", FILTER, "important");
+    });
+    const kids = root.querySelectorAll ? root.querySelectorAll("*") : [];
+    const limit = Math.min(kids.length, 200);
+    for (let i = 0; i < limit; i += 1) {
+      if (kids[i].shadowRoot) restoreAvatarImages(kids[i].shadowRoot);
+    }
   }
 
   function neutralizePlates(card) {
@@ -540,7 +583,7 @@
   }
 
   function tagAccountCard() {
-    if (!isAccountWidget || !document.body) return;
+    if ((!isAccountWidget && !isPeopleWidget) || !document.body) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const close = findAccountCloseButton();
@@ -595,9 +638,10 @@
     ensureStyle();
     const leftover = document.getElementById("gs-true-dark-toggle");
     if (leftover) leftover.remove();
-    if (isAccountWidget) {
+    if (isAccountWidget || isPeopleWidget) {
       root.classList.add(ACCOUNT_CLASS);
       tagAccountCard();
+      restoreAvatarImages(document);
       return;
     }
     if (isShareFrame) {
@@ -608,6 +652,9 @@
     root.classList.add(ROOT_CLASS);
     tagLinkPopups();
     paintShareIframe();
+    ["#gb", ".oneGoogleBar", "[role='dialog']"].forEach((sel) => {
+      document.querySelectorAll(sel).forEach((el) => restoreAvatarImages(el));
+    });
   }
 
   function bootUi() {
@@ -632,7 +679,7 @@
   if (document.documentElement) {
     observer.observe(document.documentElement, {
       childList: true,
-      subtree: isAccountWidget || isShareFrame,
+      subtree: isAccountWidget || isPeopleWidget || isShareFrame,
       attributes: true,
       attributeFilter: ["class"],
     });
@@ -641,7 +688,7 @@
   window.addEventListener("load", bootUi, { once: true });
   setInterval(bootUi, 2000);
 
-  if (!isAccountWidget && !isShareFrame) {
+  if (!isAccountWidget && !isPeopleWidget && !isShareFrame) {
     let popupRaf = 0;
     let popupLater = 0;
     const scheduleLinkTag = () => {
@@ -650,12 +697,18 @@
           popupRaf = 0;
           tagLinkPopups();
           paintShareIframe();
+          document.querySelectorAll("#gb, .oneGoogleBar, [role='dialog']").forEach((el) => {
+            restoreAvatarImages(el);
+          });
         });
       }
       clearTimeout(popupLater);
       popupLater = setTimeout(() => {
         tagLinkPopups();
         paintShareIframe();
+        document.querySelectorAll("#gb, .oneGoogleBar, [role='dialog']").forEach((el) => {
+          restoreAvatarImages(el);
+        });
       }, 80);
     };
     document.addEventListener("pointerover", scheduleLinkTag, true);
@@ -671,7 +724,7 @@
     document.addEventListener("DOMContentLoaded", watchOverlay, { once: true });
   }
 
-  if (!isAccountWidget && !isShareFrame) injectCanvasHook();
+  if (!isAccountWidget && !isPeopleWidget && !isShareFrame) injectCanvasHook();
 
   function injectCanvasHook() {
     const source = `(() => {
