@@ -11,9 +11,7 @@ Most importantly, images in your sheets stay normal—they don’t turn into neg
 ## How to install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (or another userscript manager) for Chrome, Edge, or Firefox.
-2. Click to install:
-
-[![Click to install](https://img.shields.io/badge/Click_to_install-Greasy_Fork-ab0202?logo=greasyfork)](https://update.greasyfork.org/scripts/596327/Google%20Sheets%20True%20Dark.user.js)
+2. Install the script: [![Click to install](https://img.shields.io/badge/Click_to_install-Greasy_Fork-ab0202?logo=greasyfork)](https://update.greasyfork.org/scripts/596327/Google%20Sheets%20True%20Dark.user.js)
 
 3. Open a Google Sheet and hard-refresh (`Ctrl` + `Shift` + `R` on Windows, `Cmd` + `Shift` + `R` on Mac).
 
