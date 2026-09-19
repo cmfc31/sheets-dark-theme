@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Google Sheets True Dark
 // @namespace    sheets-dark-theme
-// @version      1.6.1
+// @version      1.6.6
 // @description  Dark theme for Google Sheets that keeps photos from turning into negatives.
 // @author       cmfc31
 // @license      MIT
 // @match        https://docs.google.com/spreadsheets/*
+// @match        https://docs.google.com/drivesharing/*
 // @match        https://ogs.google.com/*
 // @run-at       document-start
 // @inject-into  content
@@ -14,7 +15,7 @@
 
 /*
   Violentmonkey: replace the old script with this whole file, Save, then hard-refresh the sheet (Ctrl+Shift+R).
-  Allow access to ogs.google.com if Violentmonkey asks — that is the account menu iframe.
+  Allow access to ogs.google.com and docs.google.com/drivesharing if Violentmonkey asks.
 */
 
 (() => {
@@ -26,6 +27,8 @@
   const STYLE_ID = "gs-true-dark-style";
   const LOG = "[Sheets True Dark]"; 
   const isAccountWidget = location.hostname === "ogs.google.com";
+  const isShareFrame = location.pathname.startsWith("/drivesharing/");
+  const SHARE_CLASS = "gs-true-dark-share";
 
   const sheetsCss = `
     html.${ROOT_CLASS} {
@@ -267,6 +270,19 @@
       box-shadow: none !important;
       filter: none !important;
     }
+
+    html.${ROOT_CLASS} .share-client-dialog,
+    html.${ROOT_CLASS} .share-client-dialog.modal-dialog,
+    html.${ROOT_CLASS} .full-screen-share-client-dialog,
+    html.${ROOT_CLASS} .team-drive-share-client-dialog,
+    html.${ROOT_CLASS} .share-client-dialog .contentEl,
+    html.${ROOT_CLASS} .share-client-content-iframe {
+      background: transparent !important;
+      background-color: transparent !important;
+      background-image: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
   `;
 
   const POPUP_CLASS = "gs-true-dark-popup";
@@ -305,7 +321,35 @@
     }
   `;
 
-  const css = isAccountWidget ? accountCss : sheetsCss;
+  /* Parent invert already darkens this iframe. Keep plates behind the
+     share card transparent so the sheet shows through. */
+  const shareCss = `
+    html.${SHARE_CLASS},
+    html.${SHARE_CLASS} body {
+      background: transparent !important;
+      background-color: transparent !important;
+      background-image: none !important;
+      filter: none !important;
+      color-scheme: light;
+    }
+
+    html.${SHARE_CLASS} .modal-dialog-bg,
+    html.${SHARE_CLASS} .goog-modalpopup-bg,
+    html.${SHARE_CLASS} .docs-dialog-bg,
+    html.${SHARE_CLASS} .mdc-dialog__scrim,
+    html.${SHARE_CLASS} [class*="scrim" i],
+    html.${SHARE_CLASS} [class*="backdrop" i],
+    html.${SHARE_CLASS} [class*="veil" i],
+    html.${SHARE_CLASS} [class*="curtain" i],
+    html.${SHARE_CLASS} ::backdrop {
+      background: transparent !important;
+      background-color: transparent !important;
+      background-image: none !important;
+      box-shadow: none !important;
+    }
+  `;
+
+  const css = isAccountWidget ? accountCss : isShareFrame ? shareCss : sheetsCss;
 
   try {
     GM_addStyle(css);
@@ -375,6 +419,59 @@
       const limit = Math.min(nested.length, 24);
       for (let i = 0; i < limit; i += 1) stripShadow(nested[i]);
     });
+  }
+
+  function punchTransparent(el) {
+    if (!(el instanceof HTMLElement) && !(el instanceof SVGElement)) return;
+    el.style.setProperty("background", "transparent", "important");
+    el.style.setProperty("background-color", "transparent", "important");
+    el.style.setProperty("background-image", "none", "important");
+    el.style.setProperty("box-shadow", "none", "important");
+  }
+
+  function clearShareFramePlates(doc) {
+    if (!doc || !doc.documentElement) return;
+    doc.documentElement.classList.add(SHARE_CLASS);
+    punchTransparent(doc.documentElement);
+    if (doc.body) punchTransparent(doc.body);
+    let style = doc.getElementById(STYLE_ID);
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = STYLE_ID;
+      (doc.head || doc.documentElement).appendChild(style);
+    }
+    if (style.textContent !== shareCss) style.textContent = shareCss;
+    const win = doc.defaultView;
+    if (!win || !doc.body) return;
+    const vw = win.innerWidth;
+    const vh = win.innerHeight;
+    doc.body.querySelectorAll("*").forEach((el) => {
+      if (!(el instanceof HTMLElement)) return;
+      const rect = el.getBoundingClientRect();
+      const fills = rect.width >= vw - 8 && rect.height >= vh - 8 && rect.left <= 8 && rect.top <= 8;
+      if (!fills) return;
+      const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+      if (radius >= 8 && rect.width < vw - 24 && rect.height < vh - 24) return;
+      punchTransparent(el);
+    });
+  }
+
+  function paintShareIframe() {
+    if (isAccountWidget || !document.body) return;
+    document
+      .querySelectorAll("iframe.share-client-content-iframe, iframe[src*='drivesharing'], iframe[src*='driveshare']")
+      .forEach((frame) => {
+        frame.style.setProperty("background", "transparent", "important");
+        frame.style.setProperty("background-color", "transparent", "important");
+        frame.setAttribute("allowtransparency", "true");
+        try {
+          const doc = frame.contentDocument;
+          if (!doc || !doc.documentElement) return;
+          clearShareFramePlates(doc);
+        } catch (error) {
+          /* cross-origin iframe */
+        }
+      });
   }
 
   function paintPopup(el) {
@@ -503,8 +600,14 @@
       tagAccountCard();
       return;
     }
+    if (isShareFrame) {
+      root.classList.add(SHARE_CLASS);
+      clearShareFramePlates(document);
+      return;
+    }
     root.classList.add(ROOT_CLASS);
     tagLinkPopups();
+    paintShareIframe();
   }
 
   function bootUi() {
@@ -529,7 +632,7 @@
   if (document.documentElement) {
     observer.observe(document.documentElement, {
       childList: true,
-      subtree: isAccountWidget,
+      subtree: isAccountWidget || isShareFrame,
       attributes: true,
       attributeFilter: ["class"],
     });
@@ -538,7 +641,7 @@
   window.addEventListener("load", bootUi, { once: true });
   setInterval(bootUi, 2000);
 
-  if (!isAccountWidget) {
+  if (!isAccountWidget && !isShareFrame) {
     let popupRaf = 0;
     let popupLater = 0;
     const scheduleLinkTag = () => {
@@ -546,10 +649,14 @@
         popupRaf = requestAnimationFrame(() => {
           popupRaf = 0;
           tagLinkPopups();
+          paintShareIframe();
         });
       }
       clearTimeout(popupLater);
-      popupLater = setTimeout(tagLinkPopups, 80);
+      popupLater = setTimeout(() => {
+        tagLinkPopups();
+        paintShareIframe();
+      }, 80);
     };
     document.addEventListener("pointerover", scheduleLinkTag, true);
     document.addEventListener("pointerdown", scheduleLinkTag, true);
@@ -564,7 +671,7 @@
     document.addEventListener("DOMContentLoaded", watchOverlay, { once: true });
   }
 
-  if (!isAccountWidget) injectCanvasHook();
+  if (!isAccountWidget && !isShareFrame) injectCanvasHook();
 
   function injectCanvasHook() {
     const source = `(() => {
