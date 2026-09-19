@@ -10,14 +10,10 @@ Most importantly, images in your sheets stay normal—they don’t turn into neg
 
 ## How to install
 
-You need a **userscript manager**. That is a free browser extension that can run this file on Google Sheets.
+1. Install [Violentmonkey](https://violentmonkey.github.io/) (or another userscript manager) for Chrome, Edge, or Firefox.
+2. Click to install:
 
-1. Install [Violentmonkey](https://violentmonkey.github.io/) for Chrome, Edge, or Firefox.
-2. Open the script file: [google-sheets-true-dark.user.js](google-sheets-true-dark.user.js).
-3. Click **Raw** (GitHub shows the file as plain text).
-4. Violentmonkey should offer to **install** it. Confirm that.
-5. Open any Google Sheet and refresh the page (`Ctrl` + `Shift` + `R` on Windows, `Cmd` + `Shift` + `R` on Mac).
+[Click to install](https://update.greasyfork.org/scripts/596327/Google%20Sheets%20True%20Dark.user.js)
 
-If the browser asks whether Violentmonkey may run on `ogs.google.com`, choose **Allow**. That is Google’s account menu in the top-right corner.
+3. Open a Google Sheet and hard-refresh (`Ctrl` + `Shift` + `R` on Windows, `Cmd` + `Shift` + `R` on Mac).
 
-After that, every Google Sheet you open in that browser should load in dark mode
