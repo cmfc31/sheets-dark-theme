@@ -1,15 +1,18 @@
 // ==UserScript==
 // @name         Google Sheets True Dark
 // @namespace    sheets-dark-theme
-// @version      1.6.7
+// @version      1.6.8
 // @description  Dark theme for Google Sheets that keeps photos from turning into negatives.
 // @author       cmfc31
 // @license      MIT
-// @match        https://docs.google.com/spreadsheets/*
-// @match        https://docs.google.com/drivesharing/*
-// @match        https://ogs.google.com/*
-// @match        https://contacts.google.com/*
-// @match        https://people.google.com/*
+// @include      https://docs.google.com/spreadsheets/*
+// @include      https://docs.google.com/drivesharing/*
+// @include      https://ogs.google.com/*origin=https://docs.google.com*
+// @include      https://ogs.google.com/*origin=https%3A%2F%2Fdocs.google.com*
+// @include      https://contacts.google.com/*origin=https://docs.google.com*
+// @include      https://contacts.google.com/*origin=https%3A%2F%2Fdocs.google.com*
+// @include      https://people.google.com/*origin=https://docs.google.com*
+// @include      https://people.google.com/*origin=https%3A%2F%2Fdocs.google.com*
 // @run-at       document-start
 // @inject-into  content
 // @grant        GM_addStyle
@@ -22,6 +25,38 @@
 
 (() => {
   "use strict";
+
+  function isDocsGoogleOrigin(value) {
+    return typeof value === "string" && /^https:\/\/docs\.google\.com(?:[:/?#]|$)/i.test(value.trim());
+  }
+
+  function isAllowedFrame() {
+    if (location.hostname === "docs.google.com") {
+      return (
+        location.pathname.startsWith("/spreadsheets/") || location.pathname.startsWith("/drivesharing/")
+      );
+    }
+
+    try {
+      const params = new URLSearchParams(location.search);
+      if (["origin", "embedorigin", "embedOrigin", "parent"].some((key) => isDocsGoogleOrigin(params.get(key)))) {
+        return true;
+      }
+    } catch (error) {
+      /* ignore */
+    }
+
+    try {
+      const ancestors = location.ancestorOrigins;
+      if (ancestors && ancestors.length) return isDocsGoogleOrigin(ancestors[ancestors.length - 1]);
+    } catch (error) {
+      /* ignore */
+    }
+
+    return isDocsGoogleOrigin(document.referrer);
+  }
+
+  if (!isAllowedFrame()) return;
 
   const FILTER = "invert(1) hue-rotate(180deg)";
   const ROOT_CLASS = "gs-true-dark";
