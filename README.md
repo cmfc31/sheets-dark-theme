@@ -4,10 +4,6 @@ Google Sheets does not have a true dark theme on PC. This small browser add-on g
 
 Most importantly, images in your sheets stay normal—they don’t turn into negative-looking images like they do with some other userscripts and dark theme extensions.
 
-![Dark Google Sheet with a shopping list. Product photos stay true to life.](Example1.png)
-
-![Dark Insert menu and Function submenu in Google Sheets.](Example2.png)
-
 ## How to install
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (or another userscript manager) for Chrome, Edge, or Firefox.
@@ -15,3 +11,8 @@ Most importantly, images in your sheets stay normal—they don’t turn into neg
 
 3. Open a Google Sheet and hard-refresh (`Ctrl` + `Shift` + `R` on Windows, `Cmd` + `Shift` + `R` on Mac).
 
+## Examples
+
+![Dark Google Sheet with a shopping list. Product photos stay true to life.](Example1.png)
+
+![Dark Insert menu and Function submenu in Google Sheets.](Example2.png)
