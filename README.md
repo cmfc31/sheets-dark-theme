@@ -2,7 +2,7 @@
 
 Google Sheets doesn't have a true dark theme on PC. This small browser add-on gives you one. Menus, toolbars, and the grid all go dark.
 
-Most importantly, images in your sheets stay normal—they don’t turn into negative-looking images like they do with some other userscripts and dark theme extensions.
+Most importantly, images in your sheets stay normal, they don’t turn into negative-looking images like they do with some other userscripts and dark theme extensions.
 
 ## How to install
 
